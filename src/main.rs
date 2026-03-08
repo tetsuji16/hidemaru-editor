@@ -1,15 +1,16 @@
-#![windows_subsystem = "windows"]
+mod text_engine;
+mod find_dialog;
+
+use text_engine::TextEngine;
+use find_dialog::FindDialog;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use native_windows_gui as nwg;
 use native_windows_derive as nwd;
 
 use nwd::NwgUi;
 use nwg::NativeUi;
-
-mod text_engine;
-
-use text_engine::TextEngine;
-use std::cell::RefCell;
 
 #[derive(Default, NwgUi)]
 pub struct HidemaruClone {
@@ -49,6 +50,10 @@ pub struct HidemaruClone {
 
     #[nwg_control(parent: window, text: "編集(&E)")]
     menu_edit: nwg::Menu,
+
+    #[nwg_control(parent: menu_edit, text: "検索(&S)\tCtrl+F")]
+    #[nwg_events(OnMenuItemSelected: [HidemaruClone::open_find])]
+    menu_item_find: nwg::MenuItem,
 
     #[nwg_control(parent: menu_edit, text: "やり直し(&U)\tCtrl+Z")]
     #[nwg_events(OnMenuItemSelected: [HidemaruClone::undo])]
@@ -97,7 +102,7 @@ pub struct HidemaruClone {
     menu_help: nwg::Menu,
 
     // --- Editor Area ---
-    #[nwg_control(text: "", flags: "VISIBLE|VSCROLL|HSCROLL|MULTILINE")]
+    #[nwg_control(text: "", flags: "VISIBLE|VSCROLL|HSCROLL")]
     #[nwg_layout_item(layout: layout, col: 0, row: 0, col_span: 1, row_span: 1)]
     text_box: nwg::TextBox,
 
@@ -112,8 +117,13 @@ pub struct HidemaruClone {
     #[nwg_resource(title: "Save File", action: nwg::FileDialogAction::Save, filters: "Text Files (*.txt)|*.txt|All Files (*.*)|*.*")]
     save_dialog: nwg::FileDialog,
 
+    #[nwg_control]
+    #[nwg_events( OnNotice: [HidemaruClone::on_find_notice] )]
+    find_notice: nwg::Notice,
+
     // --- State ---
     engine: RefCell<TextEngine>,
+    find_dialog_ui: RefCell<Option<find_dialog::FindDialogUi>>,
 }
 
 impl HidemaruClone {
@@ -171,13 +181,71 @@ impl HidemaruClone {
         }
     }
 
+    fn open_find(&self) {
+        let mut find_diag_opt = self.find_dialog_ui.borrow_mut();
+        if find_diag_opt.is_none() {
+            use nwg::NativeUi;
+            let data = FindDialog::build_ui(Default::default()).expect("Failed to build Find Dialog");
+            // Setup the notice sender
+            data.notice_sender.replace(Some(self.find_notice.sender()));
+            *find_diag_opt = Some(data);
+        }
+
+        if let Some(diag) = find_diag_opt.as_ref() {
+            diag.window.set_visible(true);
+            diag.window.set_focus();
+        }
+    }
+
+    fn on_find_notice(&self) {
+        let find_diag_ref = self.find_dialog_ui.borrow();
+        if let Some(diag) = find_diag_ref.as_ref() {
+            let pattern = diag.find_text.text();
+            let engine = self.engine.borrow();
+            
+            // Get current cursor position (start point for search)
+            let current_sel = self.text_box.selection();
+            let start_char = current_sel.end as usize;
+
+            if let Some(result) = engine.find(&pattern, start_char) {
+                let char_start = engine.buffer.byte_to_char(result.start_byte) as u32;
+                let char_end = engine.buffer.byte_to_char(result.end_byte) as u32;
+                self.text_box.set_selection(char_start..char_end);
+                self.text_box.set_focus();
+                self.status_bar.set_text(0, &format!("見つかりました: {}", pattern));
+            } else {
+                nwg::modal_info_message(&diag.window, "検索", &format!("「{}」は見つかりませんでした。", pattern));
+            }
+        }
+    }
+
     fn undo(&self) { /* To be implemented via Engine */ }
     fn redo(&self) { /* To be implemented via Engine */ }
-    fn cut(&self) { self.text_box.cut(); }
-    fn copy(&self) { self.text_box.copy(); }
-    fn paste(&self) { self.text_box.paste(); }
-    fn delete(&self) { /* Implementation depends on selection */ }
-    fn select_all(&self) { self.text_box.set_selection(0..self.text_box.len() as u32); }
+    
+    fn cut(&self) { 
+        use winapi::um::winuser::{SendMessageW, WM_CUT};
+        unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, WM_CUT, 0, 0); }
+    }
+    
+    fn copy(&self) { 
+        use winapi::um::winuser::{SendMessageW, WM_COPY};
+        unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, WM_COPY, 0, 0); }
+    }
+    
+    fn paste(&self) { 
+        use winapi::um::winuser::{SendMessageW, WM_PASTE};
+        unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, WM_PASTE, 0, 0); }
+    }
+    
+    fn delete(&self) { 
+        use winapi::um::winuser::{SendMessageW, WM_CLEAR};
+        unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, WM_CLEAR, 0, 0); }
+    }
+    
+    fn select_all(&self) { 
+        use winapi::um::winuser::{SendMessageW, EM_SETSEL};
+        unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, EM_SETSEL as u32, 0, -1_isize); }
+    }
 }
 
 fn main() {

@@ -1,11 +1,19 @@
 use ropey::Rope;
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Result};
-use encoding_rs::UTF_8;
+use std::io::{Read, BufWriter, Result};
 
+use regex::Regex;
+use encoding_rs::{SHIFT_JIS, UTF_8};
+
+#[derive(Default)]
 pub struct TextEngine {
     pub buffer: Rope,
     pub file_path: Option<String>,
+}
+
+pub struct SearchResult {
+    pub start_byte: usize,
+    pub end_byte: usize,
 }
 
 impl TextEngine {
@@ -17,12 +25,20 @@ impl TextEngine {
     }
 
     pub fn load_from_file(&mut self, path: &str) -> Result<()> {
-        let file = File::open(path)?;
-        let mut reader = BufReader::new(file);
-        
-        // --- Encoding handling (Simplified for now, assuming UTF-8 or similar) ---
-        // In full Hidemaru, we'd use encoding_rs to detect SJIS/EUC-JP etc.
-        self.buffer = Rope::from_reader(reader)?;
+        let mut file = File::open(path)?;
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)?;
+
+        // Try UTF-8 first
+        let (text, _, had_errors) = UTF_8.decode(&buffer);
+        if !had_errors {
+            self.buffer = Rope::from_str(&text);
+        } else {
+            // Fallback to Shift-JIS (Common in Japan/Hidemaru)
+            let (text, _, _) = SHIFT_JIS.decode(&buffer);
+            self.buffer = Rope::from_str(&text);
+        }
+
         self.file_path = Some(path.to_string());
         Ok(())
     }
@@ -32,6 +48,23 @@ impl TextEngine {
         let writer = BufWriter::new(file);
         self.buffer.write_to(writer)?;
         Ok(())
+    }
+
+    pub fn find(&self, pattern: &str, start_char: usize) -> Option<SearchResult> {
+        let text = self.buffer.to_string(); // Caching or chunking needed for 10M+ lines
+        let re = Regex::new(pattern).ok()?;
+        
+        let start_byte = self.buffer.char_to_byte(start_char);
+        if start_byte >= text.len() { return None; }
+
+        if let Some(m) = re.find(&text[start_byte..]) {
+            Some(SearchResult {
+                start_byte: start_byte + m.start(),
+                end_byte: start_byte + m.end(),
+            })
+        } else {
+            None
+        }
     }
 
     pub fn get_text(&self) -> String {
