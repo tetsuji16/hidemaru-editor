@@ -1,0 +1,5 @@
+{
+    "rust-analyzer.checkOnSave.command": "check",
+    "editor.formatOnSave": true,
+    "editor.semanticHighlighting.enabled": true
+}
