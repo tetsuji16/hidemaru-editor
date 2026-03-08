@@ -1,0 +1,10 @@
+    Checking unicode-ident v1.0.24
+    Checking serde_core v1.0.228
+    Checking proc-macro2 v1.0.106
+    Checking quote v1.0.45
+    Checking syn v1.0.109
+    Checking serde v1.0.228
+    Checking toml v0.5.11
+    Checking proc-macro-crate v0.1.5
+    Checking native-windows-derive v1.0.5
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.40s

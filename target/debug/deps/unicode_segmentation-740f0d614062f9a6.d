@@ -1,0 +1,9 @@
+C:\Users\tetsu\vscode\hidemaru-editor\hidemaru_clone\target\debug\deps\unicode_segmentation-740f0d614062f9a6.d: C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unicode-segmentation-1.12.0\src\lib.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unicode-segmentation-1.12.0\src\grapheme.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unicode-segmentation-1.12.0\src\sentence.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unicode-segmentation-1.12.0\src\word.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unicode-segmentation-1.12.0\src\tables.rs
+
+C:\Users\tetsu\vscode\hidemaru-editor\hidemaru_clone\target\debug\deps\libunicode_segmentation-740f0d614062f9a6.rmeta: C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unicode-segmentation-1.12.0\src\lib.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unicode-segmentation-1.12.0\src\grapheme.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unicode-segmentation-1.12.0\src\sentence.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unicode-segmentation-1.12.0\src\word.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unicode-segmentation-1.12.0\src\tables.rs
+
+C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unicode-segmentation-1.12.0\src\lib.rs:
+C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unicode-segmentation-1.12.0\src\grapheme.rs:
+C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unicode-segmentation-1.12.0\src\sentence.rs:
+C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unicode-segmentation-1.12.0\src\word.rs:
+C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unicode-segmentation-1.12.0\src\tables.rs:

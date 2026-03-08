@@ -1,0 +1,11 @@
+C:\Users\tetsu\vscode\hidemaru-editor\hidemaru_clone\target\debug\deps\str_indices-9348e70da9459daf.d: C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lib.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\byte_chunk.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\chars.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lines.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lines_crlf.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lines_lf.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\utf16.rs
+
+C:\Users\tetsu\vscode\hidemaru-editor\hidemaru_clone\target\debug\deps\libstr_indices-9348e70da9459daf.rmeta: C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lib.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\byte_chunk.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\chars.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lines.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lines_crlf.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lines_lf.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\utf16.rs
+
+C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lib.rs:
+C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\byte_chunk.rs:
+C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\chars.rs:
+C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lines.rs:
+C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lines_crlf.rs:
+C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lines_lf.rs:
+C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\utf16.rs:

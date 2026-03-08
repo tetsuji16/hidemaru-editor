@@ -1,0 +1,14 @@
+C:\Users\tetsu\vscode\hidemaru-editor\hidemaru_clone\target\debug\deps\serde-a3ec404d0a4305fa.d: C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs C:\Users\tetsu\vscode\hidemaru-editor\hidemaru_clone\target\debug\build\serde-df693f4fae75e6e9\out/private.rs
+
+C:\Users\tetsu\vscode\hidemaru-editor\hidemaru_clone\target\debug\deps\libserde-a3ec404d0a4305fa.rlib: C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs C:\Users\tetsu\vscode\hidemaru-editor\hidemaru_clone\target\debug\build\serde-df693f4fae75e6e9\out/private.rs
+
+C:\Users\tetsu\vscode\hidemaru-editor\hidemaru_clone\target\debug\deps\libserde-a3ec404d0a4305fa.rmeta: C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs C:\Users\tetsu\vscode\hidemaru-editor\hidemaru_clone\target\debug\build\serde-df693f4fae75e6e9\out/private.rs
+
+C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs:
+C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs:
+C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs:
+C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:
+C:\Users\tetsu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs:
+C:\Users\tetsu\vscode\hidemaru-editor\hidemaru_clone\target\debug\build\serde-df693f4fae75e6e9\out/private.rs:
+
+# env-dep:OUT_DIR=C:\\Users\\tetsu\\vscode\\hidemaru-editor\\hidemaru_clone\\target\\debug\\build\\serde-df693f4fae75e6e9\\out
