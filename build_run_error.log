@@ -1,0 +1,11 @@
+   Compiling hidemaru_clone v0.1.0 (C:\Users\tetsu\vscode\hidemaru-editor\hidemaru_clone)
+warning: unused import: `std::rc::Rc`
+ --> src\main.rs:7:5
+  |
+7 | use std::rc::Rc;
+  |     ^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `hidemaru_clone` (bin "hidemaru_clone") generated 1 warning (run `cargo fix --bin "hidemaru_clone" -p hidemaru_clone` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.48s

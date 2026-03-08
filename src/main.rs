@@ -89,21 +89,19 @@ pub struct HidemaruClone {
     #[nwg_events(OnMenuItemSelected: [HidemaruClone::select_all])]
     menu_item_select_all: nwg::MenuItem,
 
-    #[nwg_control(parent: window, text: "検索(&S)")]
-    menu_search: nwg::Menu,
+    // --- Ruler (Placeholder) ---
+    #[nwg_control(text: "....+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8", h_align: nwg::HTextAlign::Left)]
+    #[nwg_layout_item(layout: layout, col: 1, row: 0)]
+    ruler: nwg::Label,
 
-    #[nwg_control(parent: window, text: "設定(&O)")]
-    menu_option: nwg::Menu,
-
-    #[nwg_control(parent: window, text: "ウィンドウ(&W)")]
-    menu_window: nwg::Menu,
-
-    #[nwg_control(parent: window, text: "ヘルプ(&H)")]
-    menu_help: nwg::Menu,
+    // --- Line Numbers (Placeholder) ---
+    #[nwg_control(text: "1\n2\n", h_align: nwg::HTextAlign::Right)]
+    #[nwg_layout_item(layout: layout, col: 0, row: 1)]
+    line_numbers: nwg::Label,
 
     // --- Editor Area ---
     #[nwg_control(text: "", flags: "VISIBLE|VSCROLL|HSCROLL")]
-    #[nwg_layout_item(layout: layout, col: 0, row: 0, col_span: 1, row_span: 1)]
+    #[nwg_layout_item(layout: layout, col: 1, row: 1)]
     text_box: nwg::TextBox,
 
     // --- Status Bar ---
@@ -111,10 +109,13 @@ pub struct HidemaruClone {
     status_bar: nwg::StatusBar,
 
     // --- Resources ---
-    #[nwg_resource(title: "Open File", action: nwg::FileDialogAction::Open, filters: "Text Files (*.txt)|*.txt|All Files (*.*)|*.*")]
+    #[nwg_resource(family: "ＭＳ ゴシック", size: 16)]
+    editor_font: nwg::Font,
+
+    #[nwg_resource(title: "Open File", action: nwg::FileDialogAction::Open)]
     file_dialog: nwg::FileDialog,
 
-    #[nwg_resource(title: "Save File", action: nwg::FileDialogAction::Save, filters: "Text Files (*.txt)|*.txt|All Files (*.*)|*.*")]
+    #[nwg_resource(title: "Save File", action: nwg::FileDialogAction::Save)]
     save_dialog: nwg::FileDialog,
 
     #[nwg_control]
@@ -129,6 +130,20 @@ pub struct HidemaruClone {
 impl HidemaruClone {
     fn exit(&self) {
         nwg::stop_thread_dispatch();
+    }
+
+    fn init_ui(&self) {
+        // Set fonts
+        self.text_box.set_font(Some(&self.editor_font));
+        self.ruler.set_font(Some(&self.editor_font));
+        self.line_numbers.set_font(Some(&self.editor_font));
+
+        // Configure status bar panels
+        // [0: Message, 1: Encoding, 2: Line/Col]
+        self.status_bar.set_text(0, " 終了は Alt+F4 またはメニューから");
+        
+        // nwg::StatusBar supports panels via Win32 messages or potentially automatic if defined.
+        // For now, let's just use it as is or try to use panels if possible.
     }
 
     fn new_file(&self) {
@@ -250,9 +265,10 @@ impl HidemaruClone {
 
 fn main() {
     nwg::init().expect("Failed to init Native Windows GUI");
-    nwg::Font::set_global_family("ＭＳ ゴシック").expect("Failed to set default font");
+    nwg::Font::set_global_family("Yu Gothic UI").expect("Failed to set default font");
 
-    let _app = HidemaruClone::build_ui(Default::default()).expect("Failed to build UI");
+    let app = HidemaruClone::build_ui(Default::default()).expect("Failed to build UI");
+    app.init_ui();
 
     nwg::dispatch_thread_events();
 }

@@ -18,7 +18,7 @@ pub struct FindDialog {
 
     #[nwg_control(text: "")]
     #[nwg_layout_item(layout: layout, col: 0, row: 1, col_span: 2)]
-    pub find_text: nwg::TextInput,
+    pub find_text: nwg::TextBox,
 
     #[nwg_control(text: "次を検索(&F)")]
     #[nwg_layout_item(layout: layout, col: 0, row: 2)]
