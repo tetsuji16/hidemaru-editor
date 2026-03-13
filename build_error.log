@@ -1,22 +1,52 @@
     Checking hidemaru_clone v0.1.0 (C:\Users\tetsu\vscode\hidemaru-editor\hidemaru_clone)
-error[E0061]: this function takes 2 arguments but 1 argument was supplied
-   --> src\main.rs:124:80
+warning: use of deprecated struct `hidemaru_clone_ui::nwg::Timer`: Use AnimationTimer instead. The winapi timer does not have a constant tick and will call your single threaded from another thread.
+   --> src\main.rs:158:27
     |
- 27 | #[derive(Default, NwgUi)]
-    |                   ----- argument #2 of type `&EventData` is missing
-...
-124 |     #[nwg_events(OnTextInput: [HidemaruClone::on_text_changed], OnKeyRelease: [HidemaruClone::on_key_release], OnMousePress: [Hidem...
-    |                                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+158 |     highlight_timer: nwg::Timer,
+    |                           ^^^^^
     |
-note: method defined here
-   --> src\main.rs:198:8
-    |
-198 |     fn on_key_release(&self, data: &nwg::EventData) {
-    |        ^^^^^^^^^^^^^^        ---------------------
-help: provide the argument
-    |
-124 |     #[nwg_events(OnTextInput: [HidemaruClone::on_text_changed], OnKeyRelease: [HidemaruClone::on_key_release(NwgUi, /* &EventData */)], OnMousePress: [HidemaruClone::on_cursor_move] )]
-    |                                                                                                             +++++++++++++++++++++++++
+    = note: `#[warn(deprecated)]` on by default
 
-For more information about this error, try `rustc --explain E0061`.
-error: could not compile `hidemaru_clone` (bin "hidemaru_clone") due to 1 previous error
+error[E0609]: no field `color` on type `CharFormat`
+   --> src\main.rs:258:24
+    |
+258 |         default_format.color = Some([0, 0, 0]);
+    |                        ^^^^^ unknown field
+    |
+    = note: available fields are: `effects`, `height`, `y_offset`, `text_color`, `font_face_name`, `underline_type`
+
+error[E0609]: no field `color` on type `CharFormat`
+   --> src\main.rs:270:24
+    |
+270 |         keyword_format.color = Some([0, 0, 255]); // Blue
+    |                        ^^^^^ unknown field
+    |
+    = note: available fields are: `effects`, `height`, `y_offset`, `text_color`, `font_face_name`, `underline_type`
+
+error[E0609]: no field `color` on type `CharFormat`
+   --> src\main.rs:282:23
+    |
+282 |         string_format.color = Some([163, 21, 21]); // Dark red
+    |                       ^^^^^ unknown field
+    |
+    = note: available fields are: `effects`, `height`, `y_offset`, `text_color`, `font_face_name`, `underline_type`
+
+error[E0609]: no field `color` on type `CharFormat`
+   --> src\main.rs:294:24
+    |
+294 |         comment_format.color = Some([0, 128, 0]); // Green
+    |                        ^^^^^ unknown field
+    |
+    = note: available fields are: `effects`, `height`, `y_offset`, `text_color`, `font_face_name`, `underline_type`
+
+error[E0609]: no field `scrolling_programmatically` on type `&HidemaruClone`
+   --> src\main.rs:333:15
+    |
+333 |         *self.scrolling_programmatically.borrow_mut() = false;
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^ unknown field
+    |
+    = note: available fields are: `window`, `layout`, `menu_file`, `menu_item_new`, `menu_item_open` ... and 32 others
+
+For more information about this error, try `rustc --explain E0609`.
+warning: `hidemaru_clone` (bin "hidemaru_clone") generated 1 warning
+error: could not compile `hidemaru_clone` (bin "hidemaru_clone") due to 5 previous errors; 1 warning emitted

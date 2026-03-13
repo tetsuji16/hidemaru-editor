@@ -2,7 +2,7 @@ use ropey::Rope;
 use std::fs::File;
 use std::io::{Read, Result};
 
-use regex::Regex;
+
 use encoding_rs::{SHIFT_JIS, UTF_8};
 
 #[derive(Clone, Copy, Debug, PartialEq, Default)]

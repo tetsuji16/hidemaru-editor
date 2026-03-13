@@ -1,0 +1,20 @@
+    Checking hidemaru_clone v0.1.0 (C:\Users\tetsu\vscode\hidemaru-editor\hidemaru_clone)
+warning: use of deprecated struct `hidemaru_clone_ui::nwg::Timer`: Use AnimationTimer instead. The winapi timer does not have a constant tick and will call your single threaded from another thread.
+   --> src\main.rs:158:27
+    |
+158 |     highlight_timer: nwg::Timer,
+    |                           ^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+error[E0609]: no field `scrolling_programmatically` on type `&HidemaruClone`
+   --> src\main.rs:333:15
+    |
+333 |         *self.scrolling_programmatically.borrow_mut() = false;
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^ unknown field
+    |
+    = note: available fields are: `window`, `layout`, `menu_file`, `menu_item_new`, `menu_item_open` ... and 32 others
+
+For more information about this error, try `rustc --explain E0609`.
+warning: `hidemaru_clone` (bin "hidemaru_clone") generated 1 warning
+error: could not compile `hidemaru_clone` (bin "hidemaru_clone") due to 1 previous error; 1 warning emitted

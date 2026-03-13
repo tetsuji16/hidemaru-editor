@@ -116,13 +116,13 @@ pub struct HidemaruClone {
     // --- Line Numbers ---
     #[nwg_control(text: "", flags: "VISIBLE|VSCROLL", readonly: true)]
     #[nwg_layout_item(layout: layout, col: 0, row: 1)]
-    line_numbers: nwg::TextBox,
+    line_numbers: nwg::RichTextBox,
 
     // --- Editor Area ---
     #[nwg_control(text: "", flags: "VISIBLE|VSCROLL|HSCROLL")]
     #[nwg_layout_item(layout: layout, col: 1, row: 1)]
     #[nwg_events(OnTextInput: [HidemaruClone::on_text_changed], OnKeyRelease: [HidemaruClone::on_key_release(SELF, EVT_DATA)], OnMousePress: [HidemaruClone::on_cursor_move] )]
-    text_box: nwg::TextBox,
+    text_box: nwg::RichTextBox,
 
     // --- Status Bar ---
     #[nwg_control(parent: window)]
@@ -150,8 +150,12 @@ pub struct HidemaruClone {
     engine: RefCell<TextEngine>,
     find_dialog_ui: RefCell<Option<find_dialog::FindDialogUi>>,
     replace_dialog_ui: RefCell<Option<replace_dialog::ReplaceDialogUi>>,
-    scrolling_programmatically: RefCell<bool>,
+    programmatic_change: RefCell<bool>,
     overwrite_mode: RefCell<bool>,
+
+    #[nwg_control(interval: 500, stopped: true)]
+    #[nwg_events(OnTimerTick: [HidemaruClone::apply_syntax_highlighting])]
+    highlight_timer: nwg::Timer,
 }
 
 impl HidemaruClone {
@@ -176,19 +180,22 @@ impl HidemaruClone {
     }
     
     fn on_text_changed(&self) {
-        // Sync to engine with delta calculation
-        let new_text = self.text_box.text();
-        let mut engine = self.engine.borrow_mut();
-        let old_text = engine.get_text();
+        if *self.programmatic_change.borrow() { return; }
+
+        let text = self.text_box.text();
+        let old_text = self.engine.borrow().get_text();
         
-        if old_text != new_text {
-            let change = text_engine::TextEngine::compute_delta(&old_text, &new_text);
-            engine.apply_change(change, true);
+        if text != old_text {
+            let change = TextEngine::compute_delta(&old_text, &text);
+            self.engine.borrow_mut().apply_change(change, true);
         }
 
         self.update_line_numbers();
-        self.sync_scroll();
         self.update_cursor_pos_status();
+        
+        // Restart highlight timer
+        self.highlight_timer.stop();
+        self.highlight_timer.start();
     }
 
     fn on_cursor_move(&self) {
@@ -234,8 +241,73 @@ impl HidemaruClone {
         self.status_bar.set_text(3, if *ovr { " [上書き]" } else { " [挿入]" });
     }
 
+    fn apply_syntax_highlighting(&self) {
+        self.highlight_timer.stop();
+        
+        let text = self.text_box.text();
+        if text.is_empty() { return; }
+
+        let mut programmatic = self.programmatic_change.borrow_mut();
+        *programmatic = true;
+
+        // Save current selection to restore it later
+        let current_selection = self.text_box.selection();
+
+        // 1. Reset all to black
+        let mut default_format = nwg::CharFormat::default();
+        default_format.text_color = Some([0, 0, 0]);
+        self.text_box.set_selection(0..text.chars().count() as u32);
+        self.text_box.set_char_format(&default_format);
+
+        let char_indices: Vec<usize> = text.char_indices().map(|(i, _)| i).collect();
+        fn byte_to_char(byte_idx: usize, char_indices: &[usize]) -> u32 {
+            char_indices.iter().position(|&i| i == byte_idx).unwrap_or(char_indices.len()) as u32
+        }
+
+        // Keywords
+        let re_keywords = regex::Regex::new(r"\b(fn|let|mut|pub|use|mod|impl|struct|enum|match|if|else|return|crate|self|Self|trait|where|type|for|in|loop|while|break|continue|as|async|await|dyn|move|static|super|unsafe|extern|const)\b").unwrap();
+        let mut keyword_format = nwg::CharFormat::default();
+        keyword_format.text_color = Some([0, 0, 255]); // Blue
+
+        for m in re_keywords.find_iter(&text) {
+            let start = byte_to_char(m.start(), &char_indices);
+            let end = byte_to_char(m.end(), &char_indices);
+            self.text_box.set_selection(start..end);
+            self.text_box.set_char_format(&keyword_format);
+        }
+
+        // Strings
+        let re_strings = regex::Regex::new(r#""[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'"#).unwrap();
+        let mut string_format = nwg::CharFormat::default();
+        string_format.text_color = Some([163, 21, 21]); // Dark red
+
+        for m in re_strings.find_iter(&text) {
+            let start = byte_to_char(m.start(), &char_indices);
+            let end = byte_to_char(m.end(), &char_indices);
+            self.text_box.set_selection(start..end);
+            self.text_box.set_char_format(&string_format);
+        }
+
+        // Comments
+        let re_comments = regex::Regex::new(r"//.*|/\*[\s\S]*?\*/").unwrap();
+        let mut comment_format = nwg::CharFormat::default();
+        comment_format.text_color = Some([0, 128, 0]); // Green
+
+        for m in re_comments.find_iter(&text) {
+            let start = byte_to_char(m.start(), &char_indices);
+            let end = byte_to_char(m.end(), &char_indices);
+            self.text_box.set_selection(start..end);
+            self.text_box.set_char_format(&comment_format);
+        }
+
+        // Restore selection
+        self.text_box.set_selection(current_selection);
+        
+        *programmatic = false;
+    }
+
     fn sync_scroll(&self) {
-        *self.scrolling_programmatically.borrow_mut() = true;
+        *self.programmatic_change.borrow_mut() = true;
 
         // Vertical scroll
         let first_visible_line = unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, EM_GETFIRSTVISIBLELINE as u32, 0, 0) } as isize;
@@ -258,7 +330,7 @@ impl HidemaruClone {
             self.ruler.set_text("");
         }
         
-        *self.scrolling_programmatically.borrow_mut() = false;
+        *self.programmatic_change.borrow_mut() = false;
     }
 
     fn new_file(&self) {
