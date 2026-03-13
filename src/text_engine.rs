@@ -5,6 +5,36 @@ use std::io::{Read, BufWriter, Result};
 use regex::Regex;
 use encoding_rs::{SHIFT_JIS, UTF_8};
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FileEncoding {
+    Utf8,
+    ShiftJis,
+}
+
+impl std::fmt::Display for FileEncoding {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            FileEncoding::Utf8 => write!(f, "UTF-8"),
+            FileEncoding::ShiftJis => write!(f, "Shift-JIS"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum LineEnding {
+    CRLF,
+    LF,
+}
+
+impl std::fmt::Display for LineEnding {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            LineEnding::CRLF => write!(f, "CRLF"),
+            LineEnding::LF => write!(f, "LF"),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct TextChange {
     pub start_char: usize,
@@ -18,6 +48,8 @@ pub struct TextEngine {
     pub file_path: Option<String>,
     pub undo_stack: Vec<TextChange>,
     pub redo_stack: Vec<TextChange>,
+    pub encoding: FileEncoding,
+    pub line_ending: LineEnding,
 }
 
 pub struct SearchResult {
@@ -32,6 +64,8 @@ impl TextEngine {
             file_path: None,
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
+            encoding: FileEncoding::Utf8,
+            line_ending: LineEnding::CRLF,
         }
     }
 
@@ -115,10 +149,19 @@ impl TextEngine {
         let (text, _, had_errors) = UTF_8.decode(&buffer);
         if !had_errors {
             self.buffer = Rope::from_str(&text);
+            self.encoding = FileEncoding::Utf8;
         } else {
             // Fallback to Shift-JIS (Common in Japan/Hidemaru)
             let (text, _, _) = SHIFT_JIS.decode(&buffer);
             self.buffer = Rope::from_str(&text);
+            self.encoding = FileEncoding::ShiftJis;
+        }
+
+        // Detect line ending (CRLF vs LF)
+        if text.contains("\r\n") {
+            self.line_ending = LineEnding::CRLF;
+        } else {
+            self.line_ending = LineEnding::LF;
         }
 
         self.file_path = Some(path.to_string());

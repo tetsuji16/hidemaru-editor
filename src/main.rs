@@ -164,13 +164,14 @@ impl HidemaruClone {
         self.ruler.set_font(Some(&self.editor_font));
         self.line_numbers.set_font(Some(&self.editor_font));
 
-        let parts: [i32; 3] = [500, 700, -1];
+        let parts: [i32; 4] = [400, 550, 700, -1];
         unsafe { SendMessageW(self.status_bar.handle.hwnd().unwrap() as _, SB_SETPARTS as u32, parts.len() as _, parts.as_ptr() as _); }
 
-        self.status_bar.set_text(0, " 終了は Alt+F4 またはメニューから");
+        self.status_bar.set_text(0, " 準備完了");
         
         self.update_line_numbers();
         self.update_cursor_pos_status();
+        self.update_info_status();
     }
     
     fn on_text_changed(&self) {
@@ -211,7 +212,13 @@ impl HidemaruClone {
         
         let col_index = selection_start - line_start_index;
 
-        self.status_bar.set_text(2, &format!("Ln: {}, Col: {}", line_index + 1, col_index + 1));
+        self.status_bar.set_text(3, &format!("Ln: {}, Col: {}", line_index + 1, col_index + 1));
+    }
+
+    fn update_info_status(&self) {
+        let engine = self.engine.borrow();
+        self.status_bar.set_text(1, &format!(" {}", engine.encoding));
+        self.status_bar.set_text(2, &format!(" {}", engine.line_ending));
     }
 
     fn sync_scroll(&self) {
@@ -247,6 +254,7 @@ impl HidemaruClone {
             self.update_line_numbers();
             self.sync_scroll();
             self.update_cursor_pos_status();
+            self.update_info_status();
         } else {
              nwg::modal_error_message(&self.window, "ファイルエラー", &format!("ファイル {} を開けませんでした。", path));
         }
