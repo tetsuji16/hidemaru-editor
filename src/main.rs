@@ -1,10 +1,10 @@
+
 mod text_engine;
 mod find_dialog;
 
 use text_engine::TextEngine;
 use find_dialog::FindDialog;
 use std::cell::RefCell;
-use std::rc::Rc;
 
 use native_windows_gui as nwg;
 use native_windows_derive as nwd;
@@ -12,13 +12,23 @@ use native_windows_derive as nwd;
 use nwd::NwgUi;
 use nwg::NativeUi;
 
+// Import winapi constants
+use winapi::um::winuser::{
+    SendMessageW,
+    WM_UNDO, WM_CUT, WM_COPY, WM_PASTE, WM_CLEAR,
+    EM_SETSEL, EM_GETLINECOUNT, EM_GETFIRSTVISIBLELINE, EM_LINESCROLL,
+    EM_LINEFROMCHAR, EM_LINEINDEX
+};
+use winapi::um::commctrl::{SB_SETPARTS};
+
+
 #[derive(Default, NwgUi)]
 pub struct HidemaruClone {
     #[nwg_control(size: (1024, 768), position: (100, 100), title: "秀丸エディタ - (無題) [Rust]", accept_files: true)]
-    #[nwg_events( OnWindowClose: [HidemaruClone::exit] )]
+    #[nwg_events( OnWindowClose: [HidemaruClone::exit], OnFileDrop: [HidemaruClone::file_drop(SELF, EVT_DATA)] )]
     window: nwg::Window,
 
-    #[nwg_layout(parent: window)]
+    #[nwg_layout(parent: window, spacing: 0, margin: [1,1,1,1])]
     layout: nwg::GridLayout,
 
     // --- Menus ---
@@ -30,7 +40,7 @@ pub struct HidemaruClone {
     menu_item_new: nwg::MenuItem,
 
     #[nwg_control(parent: menu_file, text: "開く(&O)...")]
-    #[nwg_events(OnMenuItemSelected: [HidemaruClone::open_file])]
+    #[nwg_events(OnMenuItemSelected: [HidemaruClone::open_file_dialog])]
     menu_item_open: nwg::MenuItem,
 
     #[nwg_control(parent: menu_file, text: "上書き保存(&S)")]
@@ -50,11 +60,7 @@ pub struct HidemaruClone {
 
     #[nwg_control(parent: window, text: "編集(&E)")]
     menu_edit: nwg::Menu,
-
-    #[nwg_control(parent: menu_edit, text: "検索(&S)\tCtrl+F")]
-    #[nwg_events(OnMenuItemSelected: [HidemaruClone::open_find])]
-    menu_item_find: nwg::MenuItem,
-
+    
     #[nwg_control(parent: menu_edit, text: "やり直し(&U)\tCtrl+Z")]
     #[nwg_events(OnMenuItemSelected: [HidemaruClone::undo])]
     menu_item_undo: nwg::MenuItem,
@@ -84,6 +90,13 @@ pub struct HidemaruClone {
 
     #[nwg_control(parent: menu_edit)]
     menu_item_edit_sep2: nwg::MenuSeparator,
+    
+    #[nwg_control(parent: menu_edit, text: "検索(&S)\tCtrl+F")]
+    #[nwg_events(OnMenuItemSelected: [HidemaruClone::open_find])]
+    menu_item_find: nwg::MenuItem,
+    
+    #[nwg_control(parent: menu_edit)]
+    menu_item_edit_sep3: nwg::MenuSeparator,
 
     #[nwg_control(parent: menu_edit, text: "すべて選択(&A)\tCtrl+A")]
     #[nwg_events(OnMenuItemSelected: [HidemaruClone::select_all])]
@@ -94,14 +107,15 @@ pub struct HidemaruClone {
     #[nwg_layout_item(layout: layout, col: 1, row: 0)]
     ruler: nwg::Label,
 
-    // --- Line Numbers (Placeholder) ---
-    #[nwg_control(text: "1\n2\n", h_align: nwg::HTextAlign::Right)]
+    // --- Line Numbers ---
+    #[nwg_control(text: "", flags: "VISIBLE|VSCROLL", readonly: true)]
     #[nwg_layout_item(layout: layout, col: 0, row: 1)]
-    line_numbers: nwg::Label,
+    line_numbers: nwg::TextBox,
 
     // --- Editor Area ---
     #[nwg_control(text: "", flags: "VISIBLE|VSCROLL|HSCROLL")]
     #[nwg_layout_item(layout: layout, col: 1, row: 1)]
+    #[nwg_events(OnTextInput: [HidemaruClone::on_text_changed], OnKeyRelease: [HidemaruClone::on_cursor_move], OnMousePress: [HidemaruClone::on_cursor_move] )]
     text_box: nwg::TextBox,
 
     // --- Status Bar ---
@@ -112,7 +126,7 @@ pub struct HidemaruClone {
     #[nwg_resource(family: "ＭＳ ゴシック", size: 16)]
     editor_font: nwg::Font,
 
-    #[nwg_resource(title: "Open File", action: nwg::FileDialogAction::Open)]
+    #[nwg_resource(title: "Open File", action: nwg::FileDialogAction::Open, multiselect: false)]
     file_dialog: nwg::FileDialog,
 
     #[nwg_resource(title: "Save File", action: nwg::FileDialogAction::Save)]
@@ -121,10 +135,11 @@ pub struct HidemaruClone {
     #[nwg_control]
     #[nwg_events( OnNotice: [HidemaruClone::on_find_notice] )]
     find_notice: nwg::Notice,
-
+    
     // --- State ---
     engine: RefCell<TextEngine>,
     find_dialog_ui: RefCell<Option<find_dialog::FindDialogUi>>,
+    scrolling_programmatically: RefCell<bool>,
 }
 
 impl HidemaruClone {
@@ -138,12 +153,68 @@ impl HidemaruClone {
         self.ruler.set_font(Some(&self.editor_font));
         self.line_numbers.set_font(Some(&self.editor_font));
 
-        // Configure status bar panels
-        // [0: Message, 1: Encoding, 2: Line/Col]
+        let parts: [i32; 3] = [500, 700, -1];
+        unsafe { SendMessageW(self.status_bar.handle.hwnd().unwrap() as _, SB_SETPARTS as u32, parts.len() as _, parts.as_ptr() as _); }
+
         self.status_bar.set_text(0, " 終了は Alt+F4 またはメニューから");
         
-        // nwg::StatusBar supports panels via Win32 messages or potentially automatic if defined.
-        // For now, let's just use it as is or try to use panels if possible.
+        self.update_line_numbers();
+        self.update_cursor_pos_status();
+    }
+    
+    fn on_text_changed(&self) {
+        // Sync to engine with delta calculation
+        let new_text = self.text_box.text();
+        let mut engine = self.engine.borrow_mut();
+        let old_text = engine.get_text();
+        
+        if old_text != new_text {
+            let change = text_engine::TextEngine::compute_delta(&old_text, &new_text);
+            engine.apply_change(change, true);
+        }
+
+        self.update_line_numbers();
+        self.sync_scroll();
+        self.update_cursor_pos_status();
+    }
+
+    fn on_cursor_move(&self) {
+        self.update_cursor_pos_status();
+    }
+    
+    fn update_line_numbers(&self) {
+        let line_count = unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, EM_GETLINECOUNT as u32, 0, 0) } as usize;
+        let old_line_count = self.line_numbers.text().lines().count();
+
+        if line_count != old_line_count {
+            let numbers = (1..=line_count).map(|i| i.to_string()).collect::<Vec<_>>().join("\r\n");
+            self.line_numbers.set_text(&numbers);
+        }
+    }
+
+    fn update_cursor_pos_status(&self) {
+        let selection_start = self.text_box.selection().start;
+
+        let line_index = unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, EM_LINEFROMCHAR as u32, selection_start as _, 0) } as usize;
+        let line_start_index = unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, EM_LINEINDEX as u32, line_index as _, 0) } as u32;
+        
+        let col_index = selection_start - line_start_index;
+
+        self.status_bar.set_text(2, &format!("Ln: {}, Col: {}", line_index + 1, col_index + 1));
+    }
+
+    fn sync_scroll(&self) {
+        *self.scrolling_programmatically.borrow_mut() = true;
+
+        let first_visible_line = unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, EM_GETFIRSTVISIBLELINE as u32, 0, 0) } as isize;
+        let current_line_numbers_scroll = unsafe { SendMessageW(self.line_numbers.handle.hwnd().unwrap() as _, EM_GETFIRSTVISIBLELINE as u32, 0, 0) } as isize;
+
+        let line_delta = first_visible_line - current_line_numbers_scroll;
+        if line_delta != 0 {
+             unsafe { SendMessageW(self.line_numbers.handle.hwnd().unwrap() as _, EM_LINESCROLL as u32, 0, line_delta as isize) };
+        }
+        
+        *self.scrolling_programmatically.borrow_mut() = false;
     }
 
     fn new_file(&self) {
@@ -152,28 +223,44 @@ impl HidemaruClone {
         self.text_box.set_text("");
         self.window.set_text("秀丸エディタ - (無題) [Rust]");
         self.status_bar.set_text(0, "新規作成しました。");
+        self.update_line_numbers();
+        self.update_cursor_pos_status();
     }
-
-    fn open_file(&self) {
+    
+    fn open_file(&self, path: &str) {
+        let mut engine = self.engine.borrow_mut();
+        if let Ok(_) = engine.load_from_file(path) {
+            self.text_box.set_text(&engine.get_text());
+            self.window.set_text(&format!("秀丸エディタ - {} [Rust]", path));
+            self.status_bar.set_text(0, &format!("読み込み完了: {}", path));
+            self.update_line_numbers();
+            self.sync_scroll();
+            self.update_cursor_pos_status();
+        } else {
+             nwg::modal_error_message(&self.window, "ファイルエラー", &format!("ファイル {} を開けませんでした。", path));
+        }
+    }
+    
+    fn open_file_dialog(&self) {
         if self.file_dialog.run(Some(&self.window)) {
             if let Ok(path) = self.file_dialog.get_selected_item() {
-                let path_str = path.into_string().unwrap();
-                let mut engine = self.engine.borrow_mut();
-                if let Ok(_) = engine.load_from_file(&path_str) {
-                    self.text_box.set_text(&engine.get_text());
-                    self.window.set_text(&format!("秀丸エディタ - {} [Rust]", path_str));
-                    self.status_bar.set_text(0, &format!("読み込み完了: {}", path_str));
-                }
+                self.open_file(&path.into_string().unwrap());
             }
+        }
+    }
+    
+    fn file_drop(&self, data: &nwg::EventData) {
+        if let Some(path) = data.on_file_drop().files().get(0) {
+            self.open_file(path);
         }
     }
 
     fn save_file(&self) {
-        let mut engine = self.engine.borrow_mut();
-        engine.set_text(&self.text_box.text());
-        
-        if let Some(ref path) = engine.file_path.clone() {
-            if let Ok(_) = engine.save_to_file(path) {
+        // First, sync textbox content to engine
+        self.engine.borrow_mut().set_text(&self.text_box.text());
+
+        if let Some(ref path) = self.engine.borrow().file_path.clone() {
+            if self.engine.borrow().save_to_file(path).is_ok() {
                 self.status_bar.set_text(0, &format!("保存しました: {}", path));
             }
         } else {
@@ -185,10 +272,9 @@ impl HidemaruClone {
         if self.save_dialog.run(Some(&self.window)) {
             if let Ok(path) = self.save_dialog.get_selected_item() {
                 let path_str = path.into_string().unwrap();
-                let mut engine = self.engine.borrow_mut();
-                engine.set_text(&self.text_box.text());
-                if let Ok(_) = engine.save_to_file(&path_str) {
-                    engine.file_path = Some(path_str.clone());
+                self.engine.borrow_mut().set_text(&self.text_box.text());
+                if self.engine.borrow_mut().save_to_file(&path_str).is_ok() {
+                    self.engine.borrow_mut().file_path = Some(path_str.clone());
                     self.window.set_text(&format!("秀丸エディタ - {} [Rust]", path_str));
                     self.status_bar.set_text(0, &format!("名前を付けて保存完了: {}", path_str));
                 }
@@ -199,9 +285,7 @@ impl HidemaruClone {
     fn open_find(&self) {
         let mut find_diag_opt = self.find_dialog_ui.borrow_mut();
         if find_diag_opt.is_none() {
-            use nwg::NativeUi;
             let data = FindDialog::build_ui(Default::default()).expect("Failed to build Find Dialog");
-            // Setup the notice sender
             data.notice_sender.replace(Some(self.find_notice.sender()));
             *find_diag_opt = Some(data);
         }
@@ -218,7 +302,6 @@ impl HidemaruClone {
             let pattern = diag.find_text.text();
             let engine = self.engine.borrow();
             
-            // Get current cursor position (start point for search)
             let current_sel = self.text_box.selection();
             let start_char = current_sel.end as usize;
 
@@ -229,43 +312,53 @@ impl HidemaruClone {
                 self.text_box.set_focus();
                 self.status_bar.set_text(0, &format!("見つかりました: {}", pattern));
             } else {
-                nwg::modal_info_message(&diag.window, "検索", &format!("「{}」は見つかりませんでした。", pattern));
+                nwg::modal_info_message(&diag.window, "検索", "これ以上は見つかりませんでした。");
             }
         }
     }
 
-    fn undo(&self) { /* To be implemented via Engine */ }
-    fn redo(&self) { /* To be implemented via Engine */ }
+    fn undo(&self) { 
+        let mut engine = self.engine.borrow_mut();
+        if let Some(_) = engine.undo() {
+            self.text_box.set_text(&engine.get_text());
+            self.update_line_numbers();
+            self.update_cursor_pos_status();
+        }
+    }
+    
+    fn redo(&self) { 
+        let mut engine = self.engine.borrow_mut();
+        if let Some(_) = engine.redo() {
+            self.text_box.set_text(&engine.get_text());
+            self.update_line_numbers();
+            self.update_cursor_pos_status();
+        }
+    }
     
     fn cut(&self) { 
-        use winapi::um::winuser::{SendMessageW, WM_CUT};
-        unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, WM_CUT, 0, 0); }
+        unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, WM_CUT as u32, 0, 0); }
     }
     
     fn copy(&self) { 
-        use winapi::um::winuser::{SendMessageW, WM_COPY};
-        unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, WM_COPY, 0, 0); }
+        unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, WM_COPY as u32, 0, 0); }
     }
     
     fn paste(&self) { 
-        use winapi::um::winuser::{SendMessageW, WM_PASTE};
-        unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, WM_PASTE, 0, 0); }
+        unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, WM_PASTE as u32, 0, 0); }
     }
     
     fn delete(&self) { 
-        use winapi::um::winuser::{SendMessageW, WM_CLEAR};
-        unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, WM_CLEAR, 0, 0); }
+        unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, WM_CLEAR as u32, 0, 0); }
     }
     
     fn select_all(&self) { 
-        use winapi::um::winuser::{SendMessageW, EM_SETSEL};
         unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, EM_SETSEL as u32, 0, -1_isize); }
     }
 }
 
 fn main() {
     nwg::init().expect("Failed to init Native Windows GUI");
-    nwg::Font::set_global_family("Yu Gothic UI").expect("Failed to set default font");
+    nwg::Font::set_global_family("Segoe UI").expect("Failed to set default font");
 
     let app = HidemaruClone::build_ui(Default::default()).expect("Failed to build UI");
     app.init_ui();
