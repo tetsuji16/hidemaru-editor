@@ -1,12 +1,13 @@
 use ropey::Rope;
 use std::fs::File;
-use std::io::{Read, BufWriter, Result};
+use std::io::{Read, Result};
 
 use regex::Regex;
 use encoding_rs::{SHIFT_JIS, UTF_8};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub enum FileEncoding {
+    #[default]
     Utf8,
     ShiftJis,
 }
@@ -20,8 +21,9 @@ impl std::fmt::Display for FileEncoding {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub enum LineEnding {
+    #[default]
     CRLF,
     LF,
 }
@@ -169,9 +171,35 @@ impl TextEngine {
     }
 
     pub fn save_to_file(&self, path: &str) -> Result<()> {
-        let file = File::create(path)?;
-        let writer = BufWriter::new(file);
-        self.buffer.write_to(writer)?;
+        let text = self.get_text();
+        
+        // Apply line endings
+        let processed_text = match self.line_ending {
+            LineEnding::CRLF => {
+                if !text.contains("\r\n") && text.contains('\n') {
+                    text.replace('\n', "\r\n")
+                } else {
+                    text
+                }
+            },
+            LineEnding::LF => {
+                if text.contains("\r\n") {
+                    text.replace("\r\n", "\n")
+                } else {
+                    text
+                }
+            }
+        };
+
+        let encoded_bytes = match self.encoding {
+            FileEncoding::Utf8 => processed_text.as_bytes().to_vec(),
+            FileEncoding::ShiftJis => {
+                let (bytes, _, _) = SHIFT_JIS.encode(&processed_text);
+                bytes.into_owned()
+            }
+        };
+
+        std::fs::write(path, encoded_bytes)?;
         Ok(())
     }
 
@@ -208,7 +236,7 @@ impl TextEngine {
             let match_end_byte = start_byte + m.end();
             
             let match_start_char = self.buffer.byte_to_char(match_start_byte);
-            let match_end_char = self.buffer.byte_to_char(match_end_byte);
+            let _match_end_char = self.buffer.byte_to_char(match_end_byte);
             
             let old_text = text[match_start_byte..match_end_byte].to_string();
             

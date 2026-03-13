@@ -17,7 +17,7 @@ use nwg::NativeUi;
 // Import winapi constants
 use winapi::um::winuser::{
     SendMessageW,
-    WM_UNDO, WM_CUT, WM_COPY, WM_PASTE, WM_CLEAR,
+    WM_CUT, WM_COPY, WM_PASTE, WM_CLEAR,
     EM_SETSEL, EM_GETLINECOUNT, EM_GETFIRSTVISIBLELINE, EM_LINESCROLL,
     EM_LINEFROMCHAR, EM_LINEINDEX
 };
