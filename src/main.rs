@@ -19,7 +19,7 @@ use winapi::um::winuser::{
     SendMessageW, GetScrollPos, SB_HORZ,
     WM_CUT, WM_COPY, WM_PASTE, WM_CLEAR,
     EM_SETSEL, EM_GETLINECOUNT, EM_GETFIRSTVISIBLELINE, EM_LINESCROLL,
-    EM_LINEFROMCHAR, EM_LINEINDEX
+    EM_LINEFROMCHAR, EM_LINEINDEX, VK_INSERT
 };
 use winapi::um::commctrl::{SB_SETPARTS};
 
@@ -121,7 +121,7 @@ pub struct HidemaruClone {
     // --- Editor Area ---
     #[nwg_control(text: "", flags: "VISIBLE|VSCROLL|HSCROLL")]
     #[nwg_layout_item(layout: layout, col: 1, row: 1)]
-    #[nwg_events(OnTextInput: [HidemaruClone::on_text_changed], OnKeyRelease: [HidemaruClone::on_cursor_move], OnMousePress: [HidemaruClone::on_cursor_move] )]
+    #[nwg_events(OnTextInput: [HidemaruClone::on_text_changed], OnKeyRelease: [HidemaruClone::on_key_release(SELF, EVT_DATA)], OnMousePress: [HidemaruClone::on_cursor_move] )]
     text_box: nwg::TextBox,
 
     // --- Status Bar ---
@@ -151,6 +151,7 @@ pub struct HidemaruClone {
     find_dialog_ui: RefCell<Option<find_dialog::FindDialogUi>>,
     replace_dialog_ui: RefCell<Option<replace_dialog::ReplaceDialogUi>>,
     scrolling_programmatically: RefCell<bool>,
+    overwrite_mode: RefCell<bool>,
 }
 
 impl HidemaruClone {
@@ -164,7 +165,7 @@ impl HidemaruClone {
         self.ruler.set_font(Some(&self.editor_font));
         self.line_numbers.set_font(Some(&self.editor_font));
 
-        let parts: [i32; 4] = [400, 550, 700, -1];
+        let parts: [i32; 5] = [350, 480, 580, 750, -1];
         unsafe { SendMessageW(self.status_bar.handle.hwnd().unwrap() as _, SB_SETPARTS as u32, parts.len() as _, parts.as_ptr() as _); }
 
         self.status_bar.set_text(0, " 準備完了");
@@ -193,6 +194,16 @@ impl HidemaruClone {
     fn on_cursor_move(&self) {
         self.update_cursor_pos_status();
     }
+
+    fn on_key_release(&self, data: &nwg::EventData) {
+        let k = data.on_key();
+        if k as i32 == VK_INSERT {
+            let mut ovr = self.overwrite_mode.borrow_mut();
+            *ovr = !*ovr;
+            self.update_info_status();
+        }
+        self.update_cursor_pos_status();
+    }
     
     fn update_line_numbers(&self) {
         let line_count = unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, EM_GETLINECOUNT as u32, 0, 0) } as usize;
@@ -212,13 +223,15 @@ impl HidemaruClone {
         
         let col_index = selection_start - line_start_index;
 
-        self.status_bar.set_text(3, &format!("Ln: {}, Col: {}", line_index + 1, col_index + 1));
+        self.status_bar.set_text(4, &format!("Ln: {}, Col: {}", line_index + 1, col_index + 1));
     }
 
     fn update_info_status(&self) {
         let engine = self.engine.borrow();
+        let ovr = self.overwrite_mode.borrow();
         self.status_bar.set_text(1, &format!(" {}", engine.encoding));
         self.status_bar.set_text(2, &format!(" {}", engine.line_ending));
+        self.status_bar.set_text(3, if *ovr { " [上書き]" } else { " [挿入]" });
     }
 
     fn sync_scroll(&self) {
@@ -346,12 +359,16 @@ impl HidemaruClone {
         let find_diag_ref = self.find_dialog_ui.borrow();
         if let Some(diag) = find_diag_ref.as_ref() {
             let pattern = diag.find_text.text();
+            let options = text_engine::SearchOptions {
+                case_sensitive: diag.check_case.check_state() == nwg::CheckBoxState::Checked,
+                is_regex: diag.check_regex.check_state() == nwg::CheckBoxState::Checked,
+            };
             let engine = self.engine.borrow();
             
             let current_sel = self.text_box.selection();
             let start_char = current_sel.end as usize;
 
-            if let Some(result) = engine.find(&pattern, start_char) {
+            if let Some(result) = engine.find(&pattern, start_char, options) {
                 let char_start = engine.buffer.byte_to_char(result.start_byte) as u32;
                 let char_end = engine.buffer.byte_to_char(result.end_byte) as u32;
                 self.text_box.set_selection(char_start..char_end);
@@ -368,6 +385,10 @@ impl HidemaruClone {
         if let Some(diag) = replace_diag_ref.as_ref() {
             let pattern = diag.find_text.text();
             let replacement = diag.replace_text.text();
+            let options = text_engine::SearchOptions {
+                case_sensitive: diag.check_case.check_state() == nwg::CheckBoxState::Checked,
+                is_regex: diag.check_regex.check_state() == nwg::CheckBoxState::Checked,
+            };
             let action = *diag.action.borrow();
             
             let mut engine = self.engine.borrow_mut();
@@ -376,7 +397,7 @@ impl HidemaruClone {
             match action {
                 replace_dialog::ReplaceAction::FindNext => {
                     let start_char = current_sel.end as usize;
-                    if let Some(result) = engine.find(&pattern, start_char) {
+                    if let Some(result) = engine.find(&pattern, start_char, options) {
                         let char_start = engine.buffer.byte_to_char(result.start_byte) as u32;
                         let char_end = engine.buffer.byte_to_char(result.end_byte) as u32;
                         self.text_box.set_selection(char_start..char_end);
@@ -387,7 +408,7 @@ impl HidemaruClone {
                 },
                 replace_dialog::ReplaceAction::Replace => {
                     let start_char = current_sel.start as usize;
-                    if let Some(new_end) = engine.replace_once(&pattern, &replacement, start_char) {
+                    if let Some(new_end) = engine.replace_once(&pattern, &replacement, start_char, options) {
                         self.text_box.set_text(&engine.get_text());
                         self.text_box.set_selection(start_char as u32..new_end as u32);
                         self.text_box.set_focus();
@@ -395,7 +416,7 @@ impl HidemaruClone {
                     }
                 },
                 replace_dialog::ReplaceAction::ReplaceAll => {
-                    let count = engine.replace_all(&pattern, &replacement);
+                    let count = engine.replace_all(&pattern, &replacement, options);
                     self.text_box.set_text(&engine.get_text());
                     self.update_line_numbers();
                     nwg::modal_info_message(&diag.window, "すべて置換", &format!("{} 箇所置換しました。", count));

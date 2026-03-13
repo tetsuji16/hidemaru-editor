@@ -5,7 +5,7 @@ use std::cell::RefCell;
 
 #[derive(Default, NwgUi)]
 pub struct FindDialog {
-    #[nwg_control(size: (300, 100), position: (400, 400), title: "検索", flags: "WINDOW|VISIBLE")]
+    #[nwg_control(size: (300, 180), position: (400, 400), title: "検索", flags: "WINDOW|VISIBLE")]
     #[nwg_events( OnWindowClose: [FindDialog::close] )]
     pub window: nwg::Window,
 
@@ -17,16 +17,24 @@ pub struct FindDialog {
     label: nwg::Label,
 
     #[nwg_control(text: "")]
-    #[nwg_layout_item(layout: layout, col: 0, row: 1, col_span: 2)]
+    #[nwg_layout_item(layout: layout, col: 1, row: 0, col_span: 2)]
     pub find_text: nwg::TextBox,
 
+    #[nwg_control(text: "大文字/小文字の区別(&C)")]
+    #[nwg_layout_item(layout: layout, col: 1, row: 1)]
+    pub check_case: nwg::CheckBox,
+
+    #[nwg_control(text: "正規表現(&R)")]
+    #[nwg_layout_item(layout: layout, col: 1, row: 2)]
+    pub check_regex: nwg::CheckBox,
+
     #[nwg_control(text: "次を検索(&F)")]
-    #[nwg_layout_item(layout: layout, col: 0, row: 2)]
+    #[nwg_layout_item(layout: layout, col: 0, row: 3)]
     #[nwg_events( OnButtonClick: [FindDialog::find_next] )]
     pub btn_next: nwg::Button,
 
     #[nwg_control(text: "キャンセル")]
-    #[nwg_layout_item(layout: layout, col: 1, row: 2)]
+    #[nwg_layout_item(layout: layout, col: 1, row: 3)]
     #[nwg_events( OnButtonClick: [FindDialog::close] )]
     pub btn_cancel: nwg::Button,
 

@@ -54,6 +54,12 @@ pub struct TextEngine {
     pub line_ending: LineEnding,
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+pub struct SearchOptions {
+    pub case_sensitive: bool,
+    pub is_regex: bool,
+}
+
 pub struct SearchResult {
     pub start_byte: usize,
     pub end_byte: usize,
@@ -203,9 +209,19 @@ impl TextEngine {
         Ok(())
     }
 
-    pub fn find(&self, pattern: &str, start_char: usize) -> Option<SearchResult> {
-        let text = self.buffer.to_string(); // Caching or chunking needed for 10M+ lines
-        let re = Regex::new(pattern).ok()?;
+    pub fn find(&self, pattern: &str, start_char: usize, options: SearchOptions) -> Option<SearchResult> {
+        let text = self.buffer.to_string();
+        
+        let final_pattern = if options.is_regex {
+            pattern.to_string()
+        } else {
+            regex::escape(pattern)
+        };
+
+        let re = regex::RegexBuilder::new(&final_pattern)
+            .case_insensitive(!options.case_sensitive)
+            .build()
+            .ok()?;
         
         let start_byte = self.buffer.char_to_byte(start_char);
         if start_byte >= text.len() { return None; }
@@ -224,9 +240,19 @@ impl TextEngine {
         self.buffer.to_string()
     }
 
-    pub fn replace_once(&mut self, pattern: &str, replacement: &str, start_char: usize) -> Option<usize> {
+    pub fn replace_once(&mut self, pattern: &str, replacement: &str, start_char: usize, options: SearchOptions) -> Option<usize> {
         let text = self.get_text();
-        let re = Regex::new(pattern).ok()?;
+        
+        let final_pattern = if options.is_regex {
+            pattern.to_string()
+        } else {
+            regex::escape(pattern)
+        };
+
+        let re = regex::RegexBuilder::new(&final_pattern)
+            .case_insensitive(!options.case_sensitive)
+            .build()
+            .ok()?;
         
         let start_byte = self.buffer.char_to_byte(start_char);
         if start_byte >= text.len() { return None; }
@@ -252,9 +278,18 @@ impl TextEngine {
         }
     }
 
-    pub fn replace_all(&mut self, pattern: &str, replacement: &str) -> usize {
+    pub fn replace_all(&mut self, pattern: &str, replacement: &str, options: SearchOptions) -> usize {
         let text = self.get_text();
-        let re = if let Ok(r) = Regex::new(pattern) { r } else { return 0; };
+        
+        let final_pattern = if options.is_regex {
+            pattern.to_string()
+        } else {
+            regex::escape(pattern)
+        };
+
+        let re = if let Ok(r) = regex::RegexBuilder::new(&final_pattern)
+            .case_insensitive(!options.case_sensitive)
+            .build() { r } else { return 0; };
         
         let occurrences = re.find_iter(&text).count();
         if occurrences == 0 { return 0; }

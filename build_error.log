@@ -1,56 +1,22 @@
     Checking hidemaru_clone v0.1.0 (C:\Users\tetsu\vscode\hidemaru-editor\hidemaru_clone)
-warning: unused import: `BufWriter`
- --> src\text_engine.rs:3:21
-  |
-3 | use std::io::{Read, BufWriter, Result};
-  |                     ^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused import: `WM_UNDO`
-  --> src\main.rs:20:5
-   |
-20 |     WM_UNDO, WM_CUT, WM_COPY, WM_PASTE, WM_CLEAR,
-   |     ^^^^^^^
-
-error[E0277]: the trait bound `FileEncoding: Default` is not satisfied
-  --> src\text_engine.rs:51:5
-   |
-45 | #[derive(Default)]
-   |          ------- in this derive macro expansion
-...
-51 |     pub encoding: FileEncoding,
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
-   |
-help: the trait `Default` is not implemented for `FileEncoding`
-  --> src\text_engine.rs:9:1
-   |
- 9 | pub enum FileEncoding {
-   | ^^^^^^^^^^^^^^^^^^^^^
-
-error[E0277]: the trait bound `LineEnding: Default` is not satisfied
-  --> src\text_engine.rs:52:5
-   |
-45 | #[derive(Default)]
-   |          ------- in this derive macro expansion
-...
-52 |     pub line_ending: LineEnding,
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
-   |
-help: the trait `Default` is not implemented for `LineEnding`
-  --> src\text_engine.rs:24:1
-   |
-24 | pub enum LineEnding {
-   | ^^^^^^^^^^^^^^^^^^^
-
-warning: unused variable: `match_end_char`
-   --> src\text_engine.rs:237:17
+error[E0061]: this function takes 2 arguments but 1 argument was supplied
+   --> src\main.rs:124:80
     |
-237 |             let match_end_char = self.buffer.byte_to_char(match_end_byte);
-    |                 ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_match_end_char`
+ 27 | #[derive(Default, NwgUi)]
+    |                   ----- argument #2 of type `&EventData` is missing
+...
+124 |     #[nwg_events(OnTextInput: [HidemaruClone::on_text_changed], OnKeyRelease: [HidemaruClone::on_key_release], OnMousePress: [Hidem...
+    |                                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     |
-    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+note: method defined here
+   --> src\main.rs:198:8
+    |
+198 |     fn on_key_release(&self, data: &nwg::EventData) {
+    |        ^^^^^^^^^^^^^^        ---------------------
+help: provide the argument
+    |
+124 |     #[nwg_events(OnTextInput: [HidemaruClone::on_text_changed], OnKeyRelease: [HidemaruClone::on_key_release(NwgUi, /* &EventData */)], OnMousePress: [HidemaruClone::on_cursor_move] )]
+    |                                                                                                             +++++++++++++++++++++++++
 
-For more information about this error, try `rustc --explain E0277`.
-warning: `hidemaru_clone` (bin "hidemaru_clone") generated 3 warnings
-error: could not compile `hidemaru_clone` (bin "hidemaru_clone") due to 2 previous errors; 3 warnings emitted
+For more information about this error, try `rustc --explain E0061`.
+error: could not compile `hidemaru_clone` (bin "hidemaru_clone") due to 1 previous error

@@ -5,7 +5,7 @@ use std::cell::RefCell;
 
 #[derive(Default, NwgUi)]
 pub struct ReplaceDialog {
-    #[nwg_control(size: (400, 150), position: (400, 400), title: "置換", flags: "WINDOW|VISIBLE")]
+    #[nwg_control(size: (400, 220), position: (400, 400), title: "置換", flags: "WINDOW|VISIBLE")]
     #[nwg_events( OnWindowClose: [ReplaceDialog::close] )]
     pub window: nwg::Window,
 
@@ -28,18 +28,26 @@ pub struct ReplaceDialog {
     #[nwg_layout_item(layout: layout, col: 1, row: 1, col_span: 2)]
     pub replace_text: nwg::TextBox,
 
+    #[nwg_control(text: "大文字/小文字の区別(&C)")]
+    #[nwg_layout_item(layout: layout, col: 1, row: 2)]
+    pub check_case: nwg::CheckBox,
+
+    #[nwg_control(text: "正規表現(&R)")]
+    #[nwg_layout_item(layout: layout, col: 2, row: 2)]
+    pub check_regex: nwg::CheckBox,
+
     #[nwg_control(text: "次を検索(&F)")]
-    #[nwg_layout_item(layout: layout, col: 0, row: 2)]
+    #[nwg_layout_item(layout: layout, col: 0, row: 3)]
     #[nwg_events( OnButtonClick: [ReplaceDialog::find_next] )]
     pub btn_next: nwg::Button,
 
     #[nwg_control(text: "置換(&R)")]
-    #[nwg_layout_item(layout: layout, col: 1, row: 2)]
+    #[nwg_layout_item(layout: layout, col: 1, row: 3)]
     #[nwg_events( OnButtonClick: [ReplaceDialog::replace] )]
     pub btn_replace: nwg::Button,
 
     #[nwg_control(text: "すべて置換(&A)")]
-    #[nwg_layout_item(layout: layout, col: 2, row: 2)]
+    #[nwg_layout_item(layout: layout, col: 2, row: 3)]
     #[nwg_events( OnButtonClick: [ReplaceDialog::replace_all] )]
     pub btn_replace_all: nwg::Button,
 
