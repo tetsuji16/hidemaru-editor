@@ -153,6 +153,48 @@ impl TextEngine {
         self.buffer.to_string()
     }
 
+    pub fn replace_once(&mut self, pattern: &str, replacement: &str, start_char: usize) -> Option<usize> {
+        let text = self.get_text();
+        let re = Regex::new(pattern).ok()?;
+        
+        let start_byte = self.buffer.char_to_byte(start_char);
+        if start_byte >= text.len() { return None; }
+
+        if let Some(m) = re.find(&text[start_byte..]) {
+            let match_start_byte = start_byte + m.start();
+            let match_end_byte = start_byte + m.end();
+            
+            let match_start_char = self.buffer.byte_to_char(match_start_byte);
+            let match_end_char = self.buffer.byte_to_char(match_end_byte);
+            
+            let old_text = text[match_start_byte..match_end_byte].to_string();
+            
+            self.apply_change(TextChange {
+                start_char: match_start_char,
+                old_text,
+                new_text: replacement.to_string(),
+            }, true);
+            
+            Some(match_start_char + replacement.chars().count())
+        } else {
+            None
+        }
+    }
+
+    pub fn replace_all(&mut self, pattern: &str, replacement: &str) -> usize {
+        let text = self.get_text();
+        let re = if let Ok(r) = Regex::new(pattern) { r } else { return 0; };
+        
+        let occurrences = re.find_iter(&text).count();
+        if occurrences == 0 { return 0; }
+
+        let new_text = re.replace_all(&text, replacement).to_string();
+        let change = Self::compute_delta(&text, &new_text);
+        self.apply_change(change, true);
+        
+        occurrences
+    }
+
     pub fn set_text(&mut self, text: &str) {
         self.buffer = Rope::from_str(text);
     }

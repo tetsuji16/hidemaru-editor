@@ -1,9 +1,11 @@
 
 mod text_engine;
 mod find_dialog;
+mod replace_dialog;
 
 use text_engine::TextEngine;
 use find_dialog::FindDialog;
+use replace_dialog::ReplaceDialog;
 use std::cell::RefCell;
 
 use native_windows_gui as nwg;
@@ -94,6 +96,10 @@ pub struct HidemaruClone {
     #[nwg_control(parent: menu_edit, text: "検索(&S)\tCtrl+F")]
     #[nwg_events(OnMenuItemSelected: [HidemaruClone::open_find])]
     menu_item_find: nwg::MenuItem,
+
+    #[nwg_control(parent: menu_edit, text: "置換(&R)\tCtrl+H")]
+    #[nwg_events(OnMenuItemSelected: [HidemaruClone::open_replace])]
+    menu_item_replace: nwg::MenuItem,
     
     #[nwg_control(parent: menu_edit)]
     menu_item_edit_sep3: nwg::MenuSeparator,
@@ -135,10 +141,15 @@ pub struct HidemaruClone {
     #[nwg_control]
     #[nwg_events( OnNotice: [HidemaruClone::on_find_notice] )]
     find_notice: nwg::Notice,
+
+    #[nwg_control]
+    #[nwg_events( OnNotice: [HidemaruClone::on_replace_notice] )]
+    replace_notice: nwg::Notice,
     
     // --- State ---
     engine: RefCell<TextEngine>,
     find_dialog_ui: RefCell<Option<find_dialog::FindDialogUi>>,
+    replace_dialog_ui: RefCell<Option<replace_dialog::ReplaceDialogUi>>,
     scrolling_programmatically: RefCell<bool>,
 }
 
@@ -296,6 +307,20 @@ impl HidemaruClone {
         }
     }
 
+    fn open_replace(&self) {
+        let mut replace_diag_opt = self.replace_dialog_ui.borrow_mut();
+        if replace_diag_opt.is_none() {
+            let data = ReplaceDialog::build_ui(Default::default()).expect("Failed to build Replace Dialog");
+            data.notice_sender.replace(Some(self.replace_notice.sender()));
+            *replace_diag_opt = Some(data);
+        }
+
+        if let Some(diag) = replace_diag_opt.as_ref() {
+            diag.window.set_visible(true);
+            diag.window.set_focus();
+        }
+    }
+
     fn on_find_notice(&self) {
         let find_diag_ref = self.find_dialog_ui.borrow();
         if let Some(diag) = find_diag_ref.as_ref() {
@@ -313,6 +338,48 @@ impl HidemaruClone {
                 self.status_bar.set_text(0, &format!("見つかりました: {}", pattern));
             } else {
                 nwg::modal_info_message(&diag.window, "検索", "これ以上は見つかりませんでした。");
+            }
+        }
+    }
+
+    fn on_replace_notice(&self) {
+        let replace_diag_ref = self.replace_dialog_ui.borrow();
+        if let Some(diag) = replace_diag_ref.as_ref() {
+            let pattern = diag.find_text.text();
+            let replacement = diag.replace_text.text();
+            let action = *diag.action.borrow();
+            
+            let mut engine = self.engine.borrow_mut();
+            let current_sel = self.text_box.selection();
+            
+            match action {
+                replace_dialog::ReplaceAction::FindNext => {
+                    let start_char = current_sel.end as usize;
+                    if let Some(result) = engine.find(&pattern, start_char) {
+                        let char_start = engine.buffer.byte_to_char(result.start_byte) as u32;
+                        let char_end = engine.buffer.byte_to_char(result.end_byte) as u32;
+                        self.text_box.set_selection(char_start..char_end);
+                        self.text_box.set_focus();
+                    } else {
+                        nwg::modal_info_message(&diag.window, "検索", "これ以上は見つかりませんでした。");
+                    }
+                },
+                replace_dialog::ReplaceAction::Replace => {
+                    let start_char = current_sel.start as usize;
+                    if let Some(new_end) = engine.replace_once(&pattern, &replacement, start_char) {
+                        self.text_box.set_text(&engine.get_text());
+                        self.text_box.set_selection(start_char as u32..new_end as u32);
+                        self.text_box.set_focus();
+                        self.update_line_numbers();
+                    }
+                },
+                replace_dialog::ReplaceAction::ReplaceAll => {
+                    let count = engine.replace_all(&pattern, &replacement);
+                    self.text_box.set_text(&engine.get_text());
+                    self.update_line_numbers();
+                    nwg::modal_info_message(&diag.window, "すべて置換", &format!("{} 箇所置換しました。", count));
+                },
+                _ => {}
             }
         }
     }
