@@ -53,6 +53,10 @@ pub struct HidemaruClone {
     #[nwg_events(OnMenuItemSelected: [HidemaruClone::save_as_file])]
     menu_item_save_as: nwg::MenuItem,
 
+    #[nwg_control(parent: menu_file, text: "閉じる(&C)")]
+    #[nwg_events(OnMenuItemSelected: [HidemaruClone::close_current_tab])]
+    menu_item_close: nwg::MenuItem,
+
     #[nwg_control(parent: menu_file)]
     menu_item_separator1: nwg::MenuSeparator,
 
@@ -108,19 +112,25 @@ pub struct HidemaruClone {
     #[nwg_events(OnMenuItemSelected: [HidemaruClone::select_all])]
     menu_item_select_all: nwg::MenuItem,
 
+    // --- Tab Bar ---
+    #[nwg_control(parent: window)]
+    #[nwg_layout_item(layout: layout, col: 0, row: 0, col_span: 2)]
+    #[nwg_events(TabsContainerChanged: [HidemaruClone::on_tab_changed])]
+    tab_container: nwg::TabsContainer,
+
     // --- Ruler (Placeholder) ---
     #[nwg_control(text: "....+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8", h_align: nwg::HTextAlign::Left)]
-    #[nwg_layout_item(layout: layout, col: 1, row: 0)]
+    #[nwg_layout_item(layout: layout, col: 1, row: 1)]
     ruler: nwg::Label,
 
     // --- Line Numbers ---
     #[nwg_control(text: "", flags: "VISIBLE|VSCROLL", readonly: true)]
-    #[nwg_layout_item(layout: layout, col: 0, row: 1)]
+    #[nwg_layout_item(layout: layout, col: 0, row: 2)]
     line_numbers: nwg::RichTextBox,
 
     // --- Editor Area ---
     #[nwg_control(text: "", flags: "VISIBLE|VSCROLL|HSCROLL")]
-    #[nwg_layout_item(layout: layout, col: 1, row: 1)]
+    #[nwg_layout_item(layout: layout, col: 1, row: 2)]
     #[nwg_events(OnTextInput: [HidemaruClone::on_text_changed], OnKeyRelease: [HidemaruClone::on_key_release(SELF, EVT_DATA)], OnMousePress: [HidemaruClone::on_cursor_move] )]
     text_box: nwg::RichTextBox,
 
@@ -147,7 +157,9 @@ pub struct HidemaruClone {
     replace_notice: nwg::Notice,
     
     // --- State ---
-    engine: RefCell<TextEngine>,
+    engines: RefCell<Vec<TextEngine>>,
+    current_engine_idx: RefCell<usize>,
+    tabs: RefCell<Vec<nwg::Tab>>,
     find_dialog_ui: RefCell<Option<find_dialog::FindDialogUi>>,
     replace_dialog_ui: RefCell<Option<replace_dialog::ReplaceDialogUi>>,
     programmatic_change: RefCell<bool>,
@@ -164,6 +176,12 @@ impl HidemaruClone {
     }
 
     fn init_ui(&self) {
+        // Init with one empty document if empty
+        if self.engines.borrow().is_empty() {
+            self.engines.borrow_mut().push(TextEngine::new());
+             self.add_tab_control("(無題)");
+        }
+
         // Set fonts
         self.text_box.set_font(Some(&self.editor_font));
         self.ruler.set_font(Some(&self.editor_font));
@@ -183,11 +201,12 @@ impl HidemaruClone {
         if *self.programmatic_change.borrow() { return; }
 
         let text = self.text_box.text();
-        let old_text = self.engine.borrow().get_text();
+        let idx = *self.current_engine_idx.borrow();
+        let old_text = self.engines.borrow()[idx].get_text();
         
         if text != old_text {
             let change = TextEngine::compute_delta(&old_text, &text);
-            self.engine.borrow_mut().apply_change(change, true);
+            self.engines.borrow_mut()[idx].apply_change(change, true);
         }
 
         self.update_line_numbers();
@@ -234,7 +253,9 @@ impl HidemaruClone {
     }
 
     fn update_info_status(&self) {
-        let engine = self.engine.borrow();
+        let idx = *self.current_engine_idx.borrow();
+        let engines = self.engines.borrow();
+        let engine = &engines[idx];
         let ovr = self.overwrite_mode.borrow();
         self.status_bar.set_text(1, &format!(" {}", engine.encoding));
         self.status_bar.set_text(2, &format!(" {}", engine.line_ending));
@@ -306,6 +327,62 @@ impl HidemaruClone {
         *programmatic = false;
     }
 
+    fn on_tab_changed(&self) {
+        if *self.programmatic_change.borrow() { return; }
+        
+        let new_idx = self.tab_container.selected_tab();
+        let old_idx = *self.current_engine_idx.borrow();
+        
+        // Use a safety check for when a tab is being closed
+        if new_idx >= self.engines.borrow().len() { return; }
+        if new_idx == old_idx { return; }
+
+        // Save current text to old engine if needed
+        if old_idx < self.engines.borrow().len() {
+            self.engines.borrow_mut()[old_idx].set_text(&self.text_box.text());
+        }
+
+        // Switch
+        *self.current_engine_idx.borrow_mut() = new_idx;
+        let engines = self.engines.borrow();
+        let new_engine = &engines[new_idx];
+
+        let mut programmatic = self.programmatic_change.borrow_mut();
+        *programmatic = true;
+        self.text_box.set_text(&new_engine.get_text());
+        *programmatic = false;
+
+        let path_str = new_engine.file_path.as_deref().unwrap_or("(無題)");
+        self.window.set_text(&format!("秀丸エディタ - {} [Rust]", path_str));
+
+        self.update_line_numbers();
+        self.update_cursor_pos_status();
+        self.update_info_status();
+        self.apply_syntax_highlighting();
+    }
+
+    fn close_current_tab(&self) {
+        let count = self.engines.borrow().len();
+        if count <= 1 {
+            // Last tab: just clear it
+            let mut engines = self.engines.borrow_mut();
+            engines[0] = TextEngine::new();
+            self.tabs.borrow()[0].set_text("(無題)");
+            drop(engines);
+            self.force_refresh_ui();
+            return;
+        }
+
+        let idx = *self.current_engine_idx.borrow();
+        self.engines.borrow_mut().remove(idx);
+        self.tabs.borrow_mut().remove(idx);
+        
+        let new_idx = if idx >= count - 1 { idx - 1 } else { idx };
+        *self.current_engine_idx.borrow_mut() = new_idx;
+        self.tab_container.set_selected_tab(new_idx);
+        self.force_refresh_ui();
+    }
+
     fn sync_scroll(&self) {
         *self.programmatic_change.borrow_mut() = true;
 
@@ -334,28 +411,72 @@ impl HidemaruClone {
     }
 
     fn new_file(&self) {
-        let mut engine = self.engine.borrow_mut();
-        *engine = TextEngine::new();
-        self.text_box.set_text("");
-        self.window.set_text("秀丸エディタ - (無題) [Rust]");
+        self.engines.borrow_mut().push(TextEngine::new());
+        let new_idx = self.engines.borrow().len() - 1;
+        self.add_tab_control("(無題)");
+        self.tab_container.set_selected_tab(new_idx);
+        self.on_tab_changed();
         self.status_bar.set_text(0, "新規作成しました。");
-        self.update_line_numbers();
-        self.update_cursor_pos_status();
+    }
+
+    fn add_tab_control(&self, title: &str) {
+        let mut tab = nwg::Tab::default();
+        nwg::Tab::builder()
+            .text(title)
+            .parent(&self.tab_container)
+            .build(&mut tab)
+            .expect("Failed to build tab");
+        self.tabs.borrow_mut().push(tab);
     }
     
     fn open_file(&self, path: &str) {
-        let mut engine = self.engine.borrow_mut();
+        let mut engine = TextEngine::new();
         if let Ok(_) = engine.load_from_file(path) {
-            self.text_box.set_text(&engine.get_text());
-            self.window.set_text(&format!("秀丸エディタ - {} [Rust]", path));
+            let filename = std::path::Path::new(path).file_name()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or(path.to_string());
+
+            let mut engines = self.engines.borrow_mut();
+            
+            // If current tab is empty and has no path, reuse it
+            let current_idx = *self.current_engine_idx.borrow();
+            if current_idx < engines.len() && engines[current_idx].buffer.len_bytes() == 0 && engines[current_idx].file_path.is_none() {
+                engines[current_idx] = engine;
+                self.tabs.borrow()[current_idx].set_text(&filename);
+                // Force update UI
+                drop(engines);
+                self.force_refresh_ui();
+            } else {
+                engines.push(engine);
+                let new_idx = engines.len() - 1;
+                drop(engines);
+                self.add_tab_control(&filename);
+                self.tab_container.set_selected_tab(new_idx);
+                self.on_tab_changed();
+            }
             self.status_bar.set_text(0, &format!("読み込み完了: {}", path));
-            self.update_line_numbers();
-            self.sync_scroll();
-            self.update_cursor_pos_status();
-            self.update_info_status();
         } else {
              nwg::modal_error_message(&self.window, "ファイルエラー", &format!("ファイル {} を開けませんでした。", path));
         }
+    }
+
+    fn force_refresh_ui(&self) {
+        let idx = *self.current_engine_idx.borrow();
+        let engines = self.engines.borrow();
+        let engine = &engines[idx];
+
+        let mut programmatic = self.programmatic_change.borrow_mut();
+        *programmatic = true;
+        self.text_box.set_text(&engine.get_text());
+        *programmatic = false;
+
+        let path_str = engine.file_path.as_deref().unwrap_or("(無題)");
+        self.window.set_text(&format!("秀丸エディタ - {} [Rust]", path_str));
+
+        self.update_line_numbers();
+        self.update_cursor_pos_status();
+        self.update_info_status();
+        self.apply_syntax_highlighting();
     }
     
     fn open_file_dialog(&self) {
@@ -373,14 +494,19 @@ impl HidemaruClone {
     }
 
     fn save_file(&self) {
+        let idx = *self.current_engine_idx.borrow();
+        let mut engines = self.engines.borrow_mut();
+        let engine = &mut engines[idx];
+        
         // First, sync textbox content to engine
-        self.engine.borrow_mut().set_text(&self.text_box.text());
+        engine.set_text(&self.text_box.text());
 
-        if let Some(ref path) = self.engine.borrow().file_path.clone() {
-            if self.engine.borrow().save_to_file(path).is_ok() {
+        if let Some(ref path) = engine.file_path.clone() {
+            if engine.save_to_file(path).is_ok() {
                 self.status_bar.set_text(0, &format!("保存しました: {}", path));
             }
         } else {
+            drop(engines);
             self.save_as_file();
         }
     }
@@ -389,9 +515,19 @@ impl HidemaruClone {
         if self.save_dialog.run(Some(&self.window)) {
             if let Ok(path) = self.save_dialog.get_selected_item() {
                 let path_str = path.into_string().unwrap();
-                self.engine.borrow_mut().set_text(&self.text_box.text());
-                if self.engine.borrow_mut().save_to_file(&path_str).is_ok() {
-                    self.engine.borrow_mut().file_path = Some(path_str.clone());
+                let idx = *self.current_engine_idx.borrow();
+                let mut engines = self.engines.borrow_mut();
+                let engine = &mut engines[idx];
+
+                engine.set_text(&self.text_box.text());
+                if engine.save_to_file(&path_str).is_ok() {
+                    engine.file_path = Some(path_str.clone());
+                    
+                    let filename = std::path::Path::new(&path_str).file_name()
+                        .map(|s| s.to_string_lossy().into_owned())
+                        .unwrap_or(path_str.clone());
+                    
+                    self.tabs.borrow()[idx].set_text(&filename);
                     self.window.set_text(&format!("秀丸エディタ - {} [Rust]", path_str));
                     self.status_bar.set_text(0, &format!("名前を付けて保存完了: {}", path_str));
                 }
@@ -435,7 +571,10 @@ impl HidemaruClone {
                 case_sensitive: diag.check_case.check_state() == nwg::CheckBoxState::Checked,
                 is_regex: diag.check_regex.check_state() == nwg::CheckBoxState::Checked,
             };
-            let engine = self.engine.borrow();
+            
+            let idx = *self.current_engine_idx.borrow();
+            let engines = self.engines.borrow();
+            let engine = &engines[idx];
             
             let current_sel = self.text_box.selection();
             let start_char = current_sel.end as usize;
@@ -463,7 +602,9 @@ impl HidemaruClone {
             };
             let action = *diag.action.borrow();
             
-            let mut engine = self.engine.borrow_mut();
+            let idx = *self.current_engine_idx.borrow();
+            let mut engines = self.engines.borrow_mut();
+            let engine = &mut engines[idx];
             let current_sel = self.text_box.selection();
             
             match action {
@@ -499,7 +640,9 @@ impl HidemaruClone {
     }
 
     fn undo(&self) { 
-        let mut engine = self.engine.borrow_mut();
+        let idx = *self.current_engine_idx.borrow();
+        let mut engines = self.engines.borrow_mut();
+        let engine = &mut engines[idx];
         if let Some(_) = engine.undo() {
             self.text_box.set_text(&engine.get_text());
             self.update_line_numbers();
@@ -508,7 +651,9 @@ impl HidemaruClone {
     }
     
     fn redo(&self) { 
-        let mut engine = self.engine.borrow_mut();
+        let idx = *self.current_engine_idx.borrow();
+        let mut engines = self.engines.borrow_mut();
+        let engine = &mut engines[idx];
         if let Some(_) = engine.redo() {
             self.text_box.set_text(&engine.get_text());
             self.update_line_numbers();
@@ -536,6 +681,7 @@ impl HidemaruClone {
         unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, EM_SETSEL as u32, 0, -1_isize); }
     }
 }
+
 
 fn main() {
     nwg::init().expect("Failed to init Native Windows GUI");

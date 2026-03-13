@@ -1,20 +1,32 @@
     Checking hidemaru_clone v0.1.0 (C:\Users\tetsu\vscode\hidemaru-editor\hidemaru_clone)
 warning: use of deprecated struct `hidemaru_clone_ui::nwg::Timer`: Use AnimationTimer instead. The winapi timer does not have a constant tick and will call your single threaded from another thread.
-   --> src\main.rs:158:27
+   --> src\main.rs:170:27
     |
-158 |     highlight_timer: nwg::Timer,
+170 |     highlight_timer: nwg::Timer,
     |                           ^^^^^
     |
     = note: `#[warn(deprecated)]` on by default
 
-error[E0609]: no field `scrolling_programmatically` on type `&HidemaruClone`
-   --> src\main.rs:333:15
-    |
-333 |         *self.scrolling_programmatically.borrow_mut() = false;
-    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^ unknown field
-    |
-    = note: available fields are: `window`, `layout`, `menu_file`, `menu_item_new`, `menu_item_open` ... and 32 others
+error[E0599]: no variant or associated item named `OnTabsPostSelected` found for enum `hidemaru_clone_ui::nwg::Event` in the current scope
+  --> src\main.rs:27:19
+   |
+27 | #[derive(Default, NwgUi)]
+   |                   ^^^^^ variant or associated item not found in `hidemaru_clone_ui::nwg::Event`
+   |
+   = note: this error originates in the derive macro `NwgUi` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-For more information about this error, try `rustc --explain E0609`.
+error[E0599]: no method named `set_tab_text` found for struct `hidemaru_clone_ui::nwg::TabsContainer` in the current scope
+   --> src\main.rs:372:32
+    |
+372 |             self.tab_container.set_tab_text(0, "(辟｡鬘・");
+    |                                ^^^^^^^^^^^^ method not found in `hidemaru_clone_ui::nwg::TabsContainer`
+
+error[E0599]: no method named `remove_tab` found for struct `hidemaru_clone_ui::nwg::TabsContainer` in the current scope
+   --> src\main.rs:381:28
+    |
+381 |         self.tab_container.remove_tab(idx);
+    |                            ^^^^^^^^^^ method not found in `hidemaru_clone_ui::nwg::TabsContainer`
+
+For more information about this error, try `rustc --explain E0599`.
 warning: `hidemaru_clone` (bin "hidemaru_clone") generated 1 warning
-error: could not compile `hidemaru_clone` (bin "hidemaru_clone") due to 1 previous error; 1 warning emitted
+error: could not compile `hidemaru_clone` (bin "hidemaru_clone") due to 3 previous errors; 1 warning emitted
