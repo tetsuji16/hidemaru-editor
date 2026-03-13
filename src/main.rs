@@ -16,7 +16,7 @@ use nwg::NativeUi;
 
 // Import winapi constants
 use winapi::um::winuser::{
-    SendMessageW,
+    SendMessageW, GetScrollPos, SB_HORZ,
     WM_CUT, WM_COPY, WM_PASTE, WM_CLEAR,
     EM_SETSEL, EM_GETLINECOUNT, EM_GETFIRSTVISIBLELINE, EM_LINESCROLL,
     EM_LINEFROMCHAR, EM_LINEINDEX
@@ -224,12 +224,25 @@ impl HidemaruClone {
     fn sync_scroll(&self) {
         *self.scrolling_programmatically.borrow_mut() = true;
 
+        // Vertical scroll
         let first_visible_line = unsafe { SendMessageW(self.text_box.handle.hwnd().unwrap() as _, EM_GETFIRSTVISIBLELINE as u32, 0, 0) } as isize;
         let current_line_numbers_scroll = unsafe { SendMessageW(self.line_numbers.handle.hwnd().unwrap() as _, EM_GETFIRSTVISIBLELINE as u32, 0, 0) } as isize;
 
         let line_delta = first_visible_line - current_line_numbers_scroll;
         if line_delta != 0 {
              unsafe { SendMessageW(self.line_numbers.handle.hwnd().unwrap() as _, EM_LINESCROLL as u32, 0, line_delta as isize) };
+        }
+        
+        // Horizontal scroll sync
+        let h_scroll = unsafe { GetScrollPos(self.text_box.handle.hwnd().unwrap() as _, SB_HORZ as i32) };
+        // Approximate character width from font size (16px MS Gothic is roughly 8px per half-width char)
+        let char_offset = (h_scroll / 8) as usize;
+        
+        let full_ruler = "....+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8....+....9....+....0....+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8";
+        if char_offset < full_ruler.len() {
+            self.ruler.set_text(&full_ruler[char_offset..]);
+        } else {
+            self.ruler.set_text("");
         }
         
         *self.scrolling_programmatically.borrow_mut() = false;
